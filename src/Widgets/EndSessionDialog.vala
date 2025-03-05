@@ -109,24 +109,6 @@ public class QuickSettings.EndSessionDialog : Hdy.Window {
         grid.attach (primary_label, 1, 0);
         grid.attach (secondary_label, 1, 1);
 
-        if (dialog_type != LOGOUT) {
-            bool has_prepared_updates = false;
-            try {
-                has_prepared_updates = Pk.offline_get_prepared_ids ().length > 0;
-            } catch (Error e) {
-                warning ("Failed to check for prepared updates, assuming no: %s", e.message);
-            }
-
-            if (has_prepared_updates) {
-                updates_check_button = new Gtk.CheckButton () {
-                    active = true,
-                    label = _("Install pending system updates"),
-                    margin_top = 16
-                };
-                grid.attach (updates_check_button, 1, 2);
-            }
-        }
-
         grid.attach (action_area, 0, 3, 2);
 
         grid.show_all ();
@@ -163,11 +145,7 @@ public class QuickSettings.EndSessionDialog : Hdy.Window {
 
         confirm.clicked.connect (() => {
             if (dialog_type == EndSessionDialogType.RESTART || dialog_type == EndSessionDialogType.SHUTDOWN) {
-                if (set_offline_trigger (POWER_OFF)) {
-                    reboot ();
-                } else {
-                    shutdown ();
-                }
+                shutdown ();
             } else {
                 logout ();
             }
@@ -176,31 +154,6 @@ public class QuickSettings.EndSessionDialog : Hdy.Window {
         });
 
         realize.connect (() => Idle.add_once (() => init_wl ()));
-    }
-
-    private bool set_offline_trigger (Pk.OfflineAction action) {
-        if (updates_check_button == null) {
-            return false;
-        }
-
-        if (updates_check_button.active) {
-            try {
-                Pk.offline_trigger (action);
-                return true;
-            } catch (Error e) {
-                critical ("Failed to set offline trigger for updates: %s", e.message);
-            }
-        } else {
-            try {
-                if (Pk.offline_get_action () != UNSET) {
-                    Pk.offline_cancel ();
-                }
-            } catch (Error e) {
-                critical ("Failed to check/cancel offline trigger for updates: %s", e.message);
-            }
-        }
-
-        return false;
     }
 
     public void registry_handle_global (Wl.Registry wl_registry, uint32 name, string @interface, uint32 version) {
