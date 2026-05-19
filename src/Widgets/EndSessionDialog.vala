@@ -57,7 +57,6 @@ public class QuickSettings.EndSessionDialog : Granite.MessageDialog {
         if (dialog_type == EndSessionDialogType.RESTART) {
             var confirm_restart = (Gtk.Button) add_button (_("Restart"), 1);
             confirm_restart.clicked.connect (() => {
-                set_offline_trigger (REBOOT); // This will just do nothing if no updates are available
                 reboot ();
                 destroy ();
             });
@@ -67,24 +66,6 @@ public class QuickSettings.EndSessionDialog : Granite.MessageDialog {
 
         var confirm = (Gtk.Button) add_button (button_text, Gtk.ResponseType.ACCEPT);
         confirm.add_css_class (Granite.CssClass.DESTRUCTIVE);
-
-        if (dialog_type != LOGOUT) {
-            bool has_prepared_updates = false;
-            try {
-                has_prepared_updates = Pk.offline_get_prepared_ids ().length > 0;
-            } catch (Error e) {
-                warning ("Failed to check for prepared updates, assuming no: %s", e.message);
-            }
-
-            if (has_prepared_updates) {
-                updates_check_button = new Gtk.CheckButton () {
-                    active = true,
-                    label = _("Install pending system updates"),
-                };
-
-                custom_bin.append (updates_check_button);
-            }
-        }
 
         cancel.grab_focus ();
 
@@ -109,11 +90,7 @@ public class QuickSettings.EndSessionDialog : Granite.MessageDialog {
 
         confirm.clicked.connect (() => {
             if (dialog_type == EndSessionDialogType.RESTART || dialog_type == EndSessionDialogType.SHUTDOWN) {
-                if (set_offline_trigger (POWER_OFF)) {
-                    reboot ();
-                } else {
                     shutdown ();
-                }
             } else {
                 logout ();
             }
@@ -122,31 +99,6 @@ public class QuickSettings.EndSessionDialog : Granite.MessageDialog {
         });
 
         ((Gtk.Widget) this).realize.connect (() => Idle.add_once (() => init_wl ()));
-    }
-
-    private bool set_offline_trigger (Pk.OfflineAction action) {
-        if (updates_check_button == null) {
-            return false;
-        }
-
-        if (updates_check_button.active) {
-            try {
-                Pk.offline_trigger (action);
-                return true;
-            } catch (Error e) {
-                critical ("Failed to set offline trigger for updates: %s", e.message);
-            }
-        } else {
-            try {
-                if (Pk.offline_get_action () != UNSET) {
-                    Pk.offline_cancel ();
-                }
-            } catch (Error e) {
-                critical ("Failed to check/cancel offline trigger for updates: %s", e.message);
-            }
-        }
-
-        return false;
     }
 
     public void registry_handle_global (Wl.Registry wl_registry, uint32 name, string @interface, uint32 version) {
